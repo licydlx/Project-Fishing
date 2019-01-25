@@ -27,6 +27,7 @@ cc.Class({
             cc.scaleTo(.8, .8),
             cc.scaleTo(1, 1),
         );
+        
         this.node.runAction(seq);
 
         // 监听鼠标位置,移动飞船位置
