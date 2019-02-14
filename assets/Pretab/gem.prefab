@@ -13,7 +13,7 @@
   },
   {
     "__type__": "cc.Node",
-    "_name": "fish",
+    "_name": "gem",
     "_objFlags": 0,
     "_parent": null,
     "_children": [],
@@ -40,8 +40,8 @@
     },
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 38,
-      "height": 37
+      "width": 40,
+      "height": 36
     },
     "_anchorPoint": {
       "__type__": "cc.Vec2",
@@ -86,9 +86,7 @@
     "_enabled": true,
     "_srcBlendFactor": 770,
     "_dstBlendFactor": 771,
-    "_spriteFrame": {
-      "__uuid__": "488dbcb2-d701-4119-9fed-bd244ce9c286"
-    },
+    "_spriteFrame": null,
     "_type": 0,
     "_sizeMode": 1,
     "_fillType": 0,
@@ -101,31 +99,23 @@
     "_fillRange": 0,
     "_isTrimmedMode": true,
     "_state": 0,
-    "_atlas": {
-      "__uuid__": "7e3fad8d-0e46-4e77-8c2b-5c2191f08e71"
-    },
+    "_atlas": null,
     "_id": ""
   },
   {
-    "__type__": "172d7hs6BhCabMZn2EezhRz",
+    "__type__": "fbc19/HtdhPcYJVIV/mHlTQ",
     "_name": "",
     "_objFlags": 0,
     "node": {
       "__id__": 1
     },
     "_enabled": true,
-    "enemySpriteFrames": [
+    "gemList": [
       {
-        "__uuid__": "f059943d-1d09-416b-8573-7c2608701a76"
+        "__uuid__": "74e1c54b-69c8-496e-81f0-953f90363c6e"
       },
       {
-        "__uuid__": "05757474-f6a9-4848-8f7c-a6f7abc8646e"
-      },
-      {
-        "__uuid__": "50d4151d-39f8-4c66-b5e8-b90ce6ae8302"
-      },
-      {
-        "__uuid__": "09688970-14ab-4ce8-b214-5dddda3697e4"
+        "__uuid__": "524faf39-fb52-49d9-af5b-be04014b378b"
       }
     ],
     "_id": ""
@@ -136,9 +126,9 @@
       "__id__": 1
     },
     "asset": {
-      "__uuid__": "c1d0be2a-fbd5-43a8-86c7-51dcabf1feb8"
+      "__uuid__": "4cc8ce81-6417-4307-91a1-30ccd2c78e60"
     },
-    "fileId": "8e3oiUWMhMUp+SnSp8+haa",
+    "fileId": "71t9PPOJtKboZ4zUlbaQRh",
     "sync": false
   }
 ]
