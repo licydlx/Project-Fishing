@@ -15,8 +15,6 @@ cc.Class({
         // 碰撞系统会计算出碰撞组件在世界坐标系下的相关的值，并放到 world 这个属性里面
         let world = self.world;
         let noworld = other.world;
-        console.log(other);
-        console.log(noworld);
         // // 碰撞组件的 aabb 碰撞框
         // var aabb = world.aabb;
         // // 节点碰撞前上一帧 aabb 碰撞框的位置
@@ -30,30 +28,24 @@ cc.Class({
         // var ps = world.points;
 
         // dispatchEvent：做事件传递
-        if (noworld.points) {
-            // 碰撞宝石
-            let cee = new cc.Event.EventCustom('addTime', true);
-            cee.setUserData(other.node);
-            this.node.dispatchEvent(cee);
-        } else {
-            // 碰撞小鱼鱼
-            let a = { position: other.world.position, radius: other.world.radius };
-            let b = { position: self.world.position, radius: self.world.radius };
-            if (cc.Intersection.circleCircle(a, b)) {
-                // 向上纵向碰撞
-                if (a.position.y > b.position.y) {
+        // 碰撞小鱼鱼
+        let a = { position: other.world.position, radius: other.world.radius };
+        let b = { position: self.world.position, radius: self.world.radius };
+        if (cc.Intersection.circleCircle(a, b)) {
+            // 向上纵向碰撞
+            if (a.position.y > b.position.y) {
 
-                    if (a.radius > b.radius) {
-                        // 碰到大鱼，猥琐回家
-                    } else {
-                        // 碰到小鱼，纳入囊中
-                        let cee = new cc.Event.EventCustom('retakeOMO', true);
-                        cee.setUserData(other.node);
-                        this.node.dispatchEvent(cee);
-                    }
+                if (a.radius > b.radius) {
+                    // 碰到大鱼，猥琐回家
+                } else {
+                    // 碰到小鱼，纳入囊中
+                    let cee = new cc.Event.EventCustom('retakeOMO', true);
+                    cee.setUserData(other.node);
+                    this.node.dispatchEvent(cee);
                 }
             }
         }
+        
 
     },
 

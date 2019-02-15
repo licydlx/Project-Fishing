@@ -1,7 +1,11 @@
+
+const toolBox = require("toolBox");
+const getRandomNum = toolBox.getRandomNum;
+const getNumFromAssign = toolBox.getNumFromAssign;
+const curNodeCoordinate = toolBox.curNodeCoordinate;
 // 要干什么
 // 飞碟 omo 线
 // 飞碟移动 屏幕点击 omo移动 飞碟与omo连线 捕获检测
-
 cc.Class({
     extends: cc.Component,
 
@@ -39,8 +43,17 @@ cc.Class({
 
     // LIFE-CYCLE CALLBACKS:
     onLoad() {
+        this.FLYSHIP = this.node.getChildByName("flyShip");
+        this.SHIP = this.FLYSHIP.getChildByName("ship");
+        this.LINE = this.FLYSHIP.getChildByName("line").getComponent(cc.Graphics);
+        this.OMO = this.FLYSHIP.getChildByName("omo");
+        this.HARPOON = this.FLYSHIP.getChildByName("harpoon");
+        this.GAMEVICTORY = this.node.getChildByName("gameVictory");
+        this.GAMEFAIL = this.node.getChildByName("gameFail");
+
         this.COVER = this.node.parent.getChildByName("cover");
         this.coverDown = true;
+
         let startButton = this.COVER.getChildByName("start");
         if (startButton) {
             startButton.on(cc.Node.EventType.TOUCH_START, function (event) {
@@ -49,75 +62,21 @@ cc.Class({
                 setTimeout(function () {
                     this.init();
                 }.bind(this), 10);
-
             }, this);
         }
 
-        let flyShip = this.node.getChildByName("flyShip");
-        this.SHIP = flyShip.getChildByName("ship");
-        this.LINE = flyShip.getChildByName("line").getComponent(cc.Graphics);
-        this.OMO = flyShip.getChildByName("omo");
-        this.HARPOON = flyShip.getChildByName("harpoon");
-        this.GAMEVICTORY = this.node.getChildByName("gameVictory");
-        this.GAMEFAIL = this.node.getChildByName("gameFail");
+        // 调整飞船位子
+        this.node.on(cc.Node.EventType.MOUSE_MOVE, this._positionChange, this);
 
-        // 1.飞碟移动
-        // 监听鼠标位置,移动飞船位置
-        this.node.on(cc.Node.EventType.MOUSE_DOWN, this.globalClick, this);
-
-        this.node.on(cc.Node.EventType.MOUSE_MOVE, function (event) {
-            if (!this.coverDown) return;
-            let location = event.getLocation();
-            let pos = this.node.convertToNodeSpaceAR(location);
-            this.SHIP.setPosition(pos.x, -150);
-            if (this.FLAG) this.OMO.setPosition(pos.x, -150);
-            pos.y = -150;
-            this.moveToPos = pos;
-        }, this);
-
+        // 监听鼠标位置,移动飞船位置并发射OMO
+        this.node.on(cc.Node.EventType.MOUSE_DOWN, this._fishing, this);
 
         // 捕鱼成功，OMO回家睡觉觉
-        this.node.on('retakeOMO', function (event) {
-            event.stopPropagation();
-            if (!(this.OMO.rank < event.detail.rank)) this.fishTarget = event.detail;
-            this.isLaunchOMO = false;
-            this.retakeOMO();
-            
-        }.bind(this));
+        this.node.on('retakeOMO', this._retakeOMO, this);
 
         // 捕获宝石，增加游戏时间
         // 红：5秒；黄：3秒；
-        this.node.on('addTime', function (event) {
-            event.stopPropagation();
-            console.log(event);
-            // 添加时间
-            let addTime = parseInt(event.detail.addTime)/60;
-            this.timeProgress.progress = this.timeProgress.progress + addTime;
-
-            // 销毁宝石
-            let fishPool = this.node.getChildByName('fishPool');
-            let gem = fishPool.getChildByName('gem');
-            gem.destroy();
-            this.gemSub = null;
-        }.bind(this));   
-    },
-
-    globalClick(event) {
-        if (!this.coverDown) return;
-        let location = event.getLocation();
-        let pos = this.node.convertToNodeSpaceAR(location);
-        this.SHIP.setPosition(pos.x, -150);
-        if (this.FLAG) {
-            this.FLAG = false;
-            // 显示鱼叉
-            this.HARPOON.setPosition(pos.x, pos.y);
-            let action = cc.sequence(
-                cc.fadeIn(.1),
-                cc.fadeOut(1)
-            );
-            this.HARPOON.runAction(action);
-            this.launchOMO(pos);
-        }
+        this.node.on('addTime', this._addTime, this);
     },
 
     init() {
@@ -129,6 +88,7 @@ cc.Class({
         this.countDown = true;
         this.FLAG = true;
         this.coverDown = true;
+        this.gemTime = getNumFromAssign([5,6,7,8]);
 
         this.timeProgress.progress = 1;
         this.rankProgress.progress = 0;
@@ -139,7 +99,7 @@ cc.Class({
         this.HARPOON.scale = .4;
         this.LINE.lineWidth = .8;
 
-        this.node.on(cc.Node.EventType.MOUSE_DOWN, this.globalClick, this);
+
         // 飞船长大
         let seq = cc.sequence(
             cc.scaleTo(.2, .2),
@@ -149,28 +109,193 @@ cc.Class({
         );
 
         setTimeout(function () {
-            this.createDeaultFish();
+            this._createDeaultFish();
         }.bind(this), 1000);
 
         this.SHIP.runAction(seq);
+
     },
 
-    gameVictory() {
+    onEnable: function () {
+        cc.director.getCollisionManager().enabled = true;
+        //cc.director.getCollisionManager().enabledDebugDraw = true;
+    },
+
+    onDisable: function () {
+        cc.director.getCollisionManager().enabled = false;
+        //cc.director.getCollisionManager().enabledDebugDraw = false;
+    },
+
+    update(dt) {
+        if(this.gemTime){
+            this.gemTime -= dt*1/2;
+            if(this.gemTime < 0){
+                this.gemTime = null;
+                this._createGem();
+            }
+        }
+
+        if (this.gemSub) {
+            this.gemSub.y -= 120 * dt;
+        }
+
+        // 倒计时
+        if (this.countDown) {
+            this._updateProgressBar(this.timeProgress, dt);
+        }
+
+        if (!this.FLAG) this._drawLine(this.SHIP, this.OMO);
+
+        // 是否发射OMO
+        if (this.isLaunchOMO) {
+            let OMOcurPos = this.OMO.y + 120 * dt;
+            this.OMO.setPosition(this.OMO.x, OMOcurPos);
+            if (this.OMOtoY < OMOcurPos) {
+                this.isLaunchOMO = false;
+                this._retakeOMO();
+            }
+        }
+
+        // 是否回收OMO
+        if (this.isRetake) {
+            // OMO老坐标
+            let oldPos = this.OMO.position;
+            let direction = this.moveToPos.sub(oldPos).normalize();
+            // OMO新坐标
+            let newPos = oldPos.add(direction.mul(120 * dt));
+            this.OMO.setPosition(newPos);
+
+            // 是否捕到鱼了
+            if (this.fishTarget) {
+                let newFishPosX = newPos.x + 10;
+                let newFishPosY = newPos.y - 10;
+                this.fishTarget.setPosition(newFishPosX, newFishPosY);
+            }
+
+            // 绘制OMO及飞船之间的线
+            this._drawLine(this.SHIP, this.OMO);
+            // OMO及飞船间的距离
+            let gap = Math.pow(Math.abs(oldPos.x - newPos.x), 2) + Math.pow(Math.abs(-150 - newPos.y), 2);
+            if (gap < 20) {
+                if (this.fishTarget) {
+                    this.fishTarget.removeFromParent();
+                    this.fishTarget = null;
+                    // 加分
+                    this._addScore(this.OMO.rank);
+                }
+
+                this.OMO.runAction(cc.hide());
+                this.isRetake = false;
+                this.FLAG = true;
+            }
+        }
+    },
+
+    // 根据鼠标移动，调整飞船x轴位置
+    _positionChange(event) {
+        if (!this.coverDown) return;
+        let nodeSpacePos = curNodeCoordinate(event,this.node);
+
+        this.SHIP.setPosition(nodeSpacePos.x, -150);
+        if (this.FLAG) this.OMO.setPosition(nodeSpacePos.x, -150);
+        this.moveToPos = cc.v2(nodeSpacePos.x, -150);
+    },
+
+    // 根据点击事件，调整飞船位置及发射OMO捕鱼
+    _fishing(event) {
+        if (!this.coverDown) return;
+        let nodeSpacePos = curNodeCoordinate(event,this.node);
+
+        this.SHIP.setPosition(nodeSpacePos.x, -150);
+        if (this.FLAG) {
+            this.FLAG = false;
+            this._harpoonAnimation(nodeSpacePos);
+            this._launchOMO(nodeSpacePos);
+        }
+    },
+
+    // 鱼叉显示及隐藏
+    _harpoonAnimation(nodeSpacePos) {
+        this.HARPOON.setPosition(nodeSpacePos.x, nodeSpacePos.y);
+        let action = cc.sequence(
+            cc.fadeIn(.1),
+            cc.fadeOut(1)
+        );
+        this.HARPOON.runAction(action);
+    },
+
+    // 发射OMO
+    _launchOMO(nodeSpacePos) {
+        this.OMO.runAction(cc.show());
+        this.OMO.setPosition(nodeSpacePos.x, -140);
+        this.OMO.angle = 0;
+        this.OMOtoY = nodeSpacePos.y;
+
+        this.isLaunchOMO = true;
+    },
+
+    // 回收OMO
+    _retakeOMO(event) {
+        console.log(event);
+        if (event) {
+            event.stopPropagation();
+            if (!(this.OMO.rank < event.detail.rank)) this.fishTarget = event.detail;
+            this.isLaunchOMO = false;
+        } 
+        this.OMO.angle = 180;
+        this.isRetake = true;
+    },
+
+    // 绘制线
+    _drawLine(shipPos, omoPos) {
+        this.LINE.clear();
+        this.LINE.moveTo(shipPos.x, shipPos.y);
+        this.LINE.lineTo(omoPos.x, omoPos.y);
+        this.LINE.stroke();
+    },
+
+    // 生产宝石
+    _createGem() {
+        let gem = cc.instantiate(this.gem);
+        gem.parent = this.node.getChildByName('fishPool');
+        gem.setPosition(getRandomNum(120), 150);
+        this.gemSub = gem;
+
+        this.gemTime = getNumFromAssign([5,6,7,8]);
+
+        console.log(this.gemTime);
+    },
+
+    // 根据宝石添加时间
+    _addTime(event) {
+        event.stopPropagation();
+        // 添加时间
+        let addTime = parseInt(event.detail.addTime) / 60;
+        this.timeProgress.progress = this.timeProgress.progress + addTime;
+
+        // 销毁宝石
+        let fishPool = this.node.getChildByName('fishPool');
+        let gem = fishPool.getChildByName('gem');
+        gem.destroy();
+        this.gemSub = null;
+    },
+
+    // 游戏胜利
+    _gameVictory() {
         this.GAMEVICTORY.runAction(cc.show());
-        this.reloadGame();
+        this._reloadGame();
     },
 
-    gameFail() {
+    // 游戏失败
+    _gameFail() {
         let fishPool = this.node.getChildByName('fishPool');
         fishPool.removeAllChildren(true);
         this.GAMEFAIL.runAction(cc.show());
-        this.reloadGame();
+        this._reloadGame();
     },
 
-    reloadGame() {
-        //this.isRetake = false;
-        this.node.off(cc.Node.EventType.MOUSE_DOWN, this.globalClick, this);
-
+    // 重置游戏
+    _reloadGame() {
         setTimeout(function () {
             this.GAMEVICTORY.runAction(cc.hide());
             this.GAMEFAIL.runAction(cc.hide());
@@ -178,34 +303,24 @@ cc.Class({
         }.bind(this), 2000);
     },
 
-    shipRise() {
-        this.createGem();
+    // 飞创升级
+    _shipRise() {
         console.log('飞船升级');
         let sprite = this.SHIP.getComponent(cc.Sprite);
         sprite.spriteFrame = this.shipSpr[this.OMO.rank - 1];
 
-        this.SHIP.scale = this.SHIP.scale + .1;
-        this.OMO.scale = this.OMO.scale + .1;
-        this.HARPOON.scale = this.HARPOON.scale + .05;
-        this.LINE.lineWidth = this.LINE.lineWidth + .1;
+        // 飞创逐渐变大
+        let action = cc.scaleBy(this.SHIP.scale + .3, this.SHIP.scale + .3);
+        action.easing(cc.easeIn(3.0));
+        this.SHIP.runAction(action);
+        this.SHIP.scale = this.SHIP.scale + .3;
+
+        this.OMO.scale = this.OMO.scale + .2;
+        this.HARPOON.scale = this.HARPOON.scale + .08;
+        this.LINE.lineWidth = this.LINE.lineWidth + .15;
     },
 
-    // 生产宝石
-    createGem(){
-        let gem = cc.instantiate(this.gem);
-        gem.parent = this.node.getChildByName('fishPool');
-        gem.setPosition(getRandomNum(120),150);
-        this.gemSub = gem;
-    },
-
-    // 返回 -1 至 1
-    getRandomNum(mul) {
-        if (!mul) mul = 1;
-        return Math.random() > .5 ? -Math.round(Math.random() * mul) : Math.round(Math.random() * mul);
-    },
-
-        
-    createDeaultFish() {
+    _createDeaultFish() {
         let num;
         let bigNum;
         let seq;
@@ -262,41 +377,44 @@ cc.Class({
     },
 
     // 生成小鱼 
-    createFish() {
+    _createFish() {
         let fish = cc.instantiate(this.fish[this.OMO.rank - 1]);
         fish.rank = this.OMO.rank;
         fish.parent = this.node.getChildByName('fishPool');
     },
-    // 发射OMO
-    launchOMO(worldPos) {
-        this.OMO.runAction(cc.show());
-        this.OMO.setPosition(worldPos.x, -140);
-        this.isLaunchOMO = true;
-        this.OMOtoY = worldPos.y;
+
+    _updateProgressBar: function (progressBar, dt) {
+        let progress = progressBar.progress;
+        if (progress > 0) {
+            progress -= dt * 1 / 60;
+            progressBar.progress = progress;
+        } else {
+            this.countDown = false;
+            this._gameFail();
+        }
     },
 
-    // 回收OMO
-    retakeOMO() {
-        this.isRetake = true;
-        this.OMO.angle = 180;
+    // 加分动效
+    _addScore(seq) {
+        let scoreNode = this.SHIP.getChildByName("score");
+        let score = scoreNode.getComponent(cc.Sprite);
+        score.spriteFrame = this.scoreList[seq - 1];
+        let action = cc.sequence(cc.fadeIn(.2), cc.fadeOut(1));
+        scoreNode.runAction(action);
+
+        // 更新分数进度条
+        this._addRankProgress();
     },
 
-    // 绘制线
-    drawLine(shipPos, omoPos) {
-        this.LINE.clear();
-        this.LINE.moveTo(shipPos.x, shipPos.y);
-        this.LINE.lineTo(omoPos.x, omoPos.y);
-        this.LINE.stroke();
-    },
-
-    addRankProgress() {
+    // 更新分数进度条
+    _addRankProgress() {
         let progressBar = this.rankProgress;
         let progress = progressBar.progress;
+
         if (progress < 1) {
-            progress = progress + .2;
-            this.createFish();
+            progress = progress + .1;
+            this._createFish();
         } else {
-            console.log('升级');
             // 鱼升级
             this.OMO.rank = this.OMO.rank + 1;
             let rankLabel = this.node.getChildByName('rank').getComponent(cc.Label);
@@ -305,96 +423,15 @@ cc.Class({
             fishPool.removeAllChildren(true);
 
             if (this.OMO.rank < 4) {
-                this.createDeaultFish();
-                this.shipRise();
+                this._createDeaultFish();
+                this._shipRise();
                 progress = 0;
             } else {
                 this.countDown = false;
-                this.gameVictory();
+                this._gameVictory();
             }
         }
         progressBar.progress = progress;
-    },
-
-    _updateProgressBar: function (progressBar, dt) {
-        let progress = progressBar.progress;
-        if (progress > 0) {
-            progress -= dt * 1/60;
-            progressBar.progress = progress;
-        } else {
-            this.countDown = false;
-            this.gameFail();
-        }
-    },
-
-    update(dt) {
-        // 倒计时
-        if (this.countDown) {
-            this._updateProgressBar(this.timeProgress, dt);
-        }
-
-        if(this.gemSub){
-            this.gemSub.y -= 90 * dt;
-        }
-
-        if (!this.FLAG) this.drawLine(this.SHIP, this.OMO);
-
-        if (this.isLaunchOMO) {
-            let OMOcurPos = this.OMO.y + 120 * dt;
-            this.OMO.setPosition(this.OMO.x, OMOcurPos);
-            if (this.OMOtoY < OMOcurPos) {
-                this.isLaunchOMO = false;
-                this.retakeOMO();
-            }
-        }
-
-        if (this.isRetake) {
-            var oldPos = this.OMO.position;
-
-            var direction = this.moveToPos.sub(oldPos).normalize();
-            var newPos = oldPos.add(direction.mul(120 * dt));
-            this.OMO.setPosition(newPos);
-            if (this.fishTarget) {
-                newPos.x = newPos.x;
-                newPos.y = newPos.y;
-                let newFishPosX = newPos.x + 10;
-                let newFishPosY = newPos.y - 10;
-                this.fishTarget.setPosition(newFishPosX, newFishPosY);
-            }
-
-            this.drawLine(this.SHIP, this.OMO);
-            var gap = Math.pow(Math.abs(oldPos.x - newPos.x), 2) + Math.pow(Math.abs(-150 - newPos.y), 2);
-            if (gap < 20) {
-                if (this.fishTarget) {
-                    this.fishTarget.removeFromParent();
-                    this.fishTarget = null;
-                    this.addScore(this.OMO.rank);
-                    this.addRankProgress();
-                }
-                this.OMO.runAction(cc.hide());
-                this.isRetake = false;
-                this.FLAG = true;
-            }
-        }
-    },
-
-    // 加分动效
-    addScore(seq) {
-        let scoreNode = this.SHIP.getChildByName("score");
-        let score = scoreNode.getComponent(cc.Sprite);
-        score.spriteFrame = this.scoreList[seq - 1];
-        let action = cc.sequence(cc.fadeIn(.2), cc.fadeOut(1));
-        scoreNode.runAction(action);
-    },
-
-    onEnable: function () {
-        cc.director.getCollisionManager().enabled = true;
-        //cc.director.getCollisionManager().enabledDebugDraw = true;
-    },
-
-    onDisable: function () {
-        cc.director.getCollisionManager().enabled = false;
-        //cc.director.getCollisionManager().enabledDebugDraw = false;
     },
 
 });
