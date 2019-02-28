@@ -3,6 +3,7 @@ const toolBox = require("toolBox");
 const getRandomNum = toolBox.getRandomNum;
 const getNumFromAssign = toolBox.getNumFromAssign;
 const curNodeCoordinate = toolBox.curNodeCoordinate;
+
 // 要干什么
 // 飞碟 omo 线
 // 飞碟移动 屏幕点击 omo移动 飞碟与omo连线 捕获检测
@@ -305,7 +306,6 @@ cc.Class({
 
     // 飞创升级
     _shipRise() {
-        console.log('飞船升级');
         let sprite = this.SHIP.getComponent(cc.Sprite);
         sprite.spriteFrame = this.shipSpr[this.OMO.rank - 1];
 
@@ -313,8 +313,8 @@ cc.Class({
         let action = cc.scaleBy(this.SHIP.scale + .3, this.SHIP.scale + .3);
         action.easing(cc.easeIn(3.0));
         this.SHIP.runAction(action);
+        
         this.SHIP.scale = this.SHIP.scale + .3;
-
         this.OMO.scale = this.OMO.scale + .2;
         this.HARPOON.scale = this.HARPOON.scale + .08;
         this.LINE.lineWidth = this.LINE.lineWidth + .15;
@@ -374,6 +374,7 @@ cc.Class({
             fish.rank = bigRank;
             fish.parent = this.node.getChildByName('fishPool');
         }
+        
     },
 
     // 生成小鱼 

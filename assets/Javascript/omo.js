@@ -1,3 +1,4 @@
+
 cc.Class({
     extends: cc.Component,
 
@@ -6,11 +7,14 @@ cc.Class({
     // onLoad () {},
     // 碰撞 生命周期
 
+
+
     /**
      * 当碰撞产生的时候调用
      * @param  {Collider} other 产生碰撞的另一个碰撞组件
      * @param  {Collider} self  产生碰撞的自身的碰撞组件
      */
+
     onCollisionEnter: function (other, self) {
         // 碰撞系统会计算出碰撞组件在世界坐标系下的相关的值，并放到 world 这个属性里面
         let world = self.world;
