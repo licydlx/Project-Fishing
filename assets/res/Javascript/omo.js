@@ -35,6 +35,8 @@ cc.Class({
         // 碰撞小鱼鱼
         let a = { position: other.world.position, radius: other.world.radius };
         let b = { position: self.world.position, radius: self.world.radius };
+        if(!a.position) return;
+        
         if (cc.Intersection.circleCircle(a, b)) {
             // 向上纵向碰撞
             if (a.position.y > b.position.y) {
